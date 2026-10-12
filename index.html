@@ -555,13 +555,27 @@
                 
                 const flip = true;
                 webcamPlayer = new tmImage.Webcam(240, 180, flip);
-                // 傳入 facingMode: "user" 參數，強制請求標準前置彩色鏡頭，避免抓到筆電紅外線 (IR) 黑白鏡頭
-                await webcamPlayer.setup({ facingMode: "user" }); 
+                
+                // 嘗試設置攝影機，若指定 facingMode 失敗則自動退回預設設定
+                try {
+                    await webcamPlayer.setup({ facingMode: "user" });
+                } catch (e) {
+                    await webcamPlayer.setup();
+                }
+
+                // 強制設定 playsinline 與 muted，避免瀏覽器阻擋視訊自動播放導致黑屏
+                if (webcamPlayer.webcam) {
+                    webcamPlayer.webcam.setAttribute('playsinline', 'true');
+                    webcamPlayer.webcam.setAttribute('webkit-playsinline', 'true');
+                    webcamPlayer.webcam.muted = true;
+                }
+
                 await webcamPlayer.play();
 
                 ui.webcamContainer.innerHTML = '';
                 ui.webcamContainer.appendChild(webcamPlayer.canvas);
                 webcamPlayer.canvas.className = 'w-full h-full object-cover rounded-2xl';
+                webcamPlayer.canvas.style.display = 'block';
 
                 isModelLoaded = true;
                 isAiActive = true;
@@ -574,7 +588,7 @@
 
             } catch (error) {
                 console.error("AI Model Error:", error);
-                updateStatus('載入失敗！請確認網址是否正確或開啟權限', 'error');
+                updateStatus('攝影機開啟失敗！請確認瀏覽器鏡頭權限或連結', 'error');
                 ui.loadModelBtn.disabled = false;
                 ui.loadModelBtn.classList.remove('opacity-50');
             }
@@ -597,29 +611,37 @@
         async function predictLoop() {
             if (!isModelLoaded || !webcamPlayer) return;
 
-            webcamPlayer.update();
-            const predictionList = await tmModel.predict(webcamPlayer.canvas);
+            try {
+                // 每一幀更新攝影機 Canvas 畫面，確保視訊持續繪製不黑屏
+                webcamPlayer.update();
 
-            predictionList.forEach((pred, idx) => {
-                const name = pred.className.toLowerCase();
-                const prob = pred.probability;
+                if (tmModel) {
+                    const predictionList = await tmModel.predict(webcamPlayer.canvas);
 
-                if (idx === 0 || name.includes('class1') || name.includes('left') || name.includes('1')) {
-                    predictions.class1 = prob;
+                    predictionList.forEach((pred, idx) => {
+                        const name = pred.className.toLowerCase();
+                        const prob = pred.probability;
+
+                        if (idx === 0 || name.includes('class1') || name.includes('left') || name.includes('1')) {
+                            predictions.class1 = prob;
+                        }
+                        if (idx === 1 || name.includes('class2') || name.includes('straight') || name.includes('2')) {
+                            predictions.class2 = prob;
+                        }
+                        if (idx === 2 || name.includes('class3') || name.includes('right') || name.includes('3')) {
+                            predictions.class3 = prob;
+                        }
+                    });
+
+                    smoothedProbs.class1 += (predictions.class1 - smoothedProbs.class1) * CONFIG.SMOOTHING_FACTOR;
+                    smoothedProbs.class2 += (predictions.class2 - smoothedProbs.class2) * CONFIG.SMOOTHING_FACTOR;
+                    smoothedProbs.class3 += (predictions.class3 - smoothedProbs.class3) * CONFIG.SMOOTHING_FACTOR;
+
+                    updateHUDMeters();
                 }
-                if (idx === 1 || name.includes('class2') || name.includes('straight') || name.includes('2')) {
-                    predictions.class2 = prob;
-                }
-                if (idx === 2 || name.includes('class3') || name.includes('right') || name.includes('3')) {
-                    predictions.class3 = prob;
-                }
-            });
-
-            smoothedProbs.class1 += (predictions.class1 - smoothedProbs.class1) * CONFIG.SMOOTHING_FACTOR;
-            smoothedProbs.class2 += (predictions.class2 - smoothedProbs.class2) * CONFIG.SMOOTHING_FACTOR;
-            smoothedProbs.class3 += (predictions.class3 - smoothedProbs.class3) * CONFIG.SMOOTHING_FACTOR;
-
-            updateHUDMeters();
+            } catch (err) {
+                console.error("Predict loop error:", err);
+            }
 
             const now = performance.now();
             frameCount++;
@@ -629,7 +651,9 @@
                 lastTime = now;
             }
 
-            window.requestAnimationFrame(predictLoop);
+            if (isModelLoaded) {
+                window.requestAnimationFrame(predictLoop);
+            }
         }
 
         function updateHUDMeters() {
