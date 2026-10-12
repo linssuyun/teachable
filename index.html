@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daylight Highway AI Racer - 夢幻駕駛座 AI 賽車</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TensorFlow.js and Teachable Machine Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              macaron: {
+                pink: '#fbcfe8',
+                rose: '#f472b6',
+                mint: '#a7f3d0',
+                sky: '#bae6fd',
+                yellow: '#fef08a',
+                lavender: '#e9d5ff',
+                cream: '#fffbe8',
+                slate: '#475569'
+              }
+            },
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'Fredoka', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap');
+
+        body {
+            font-family: 'Plus Jakarta Sans', 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, #fce7f3 0%, #e0e7ff 50%, #dcfce7 100%);
+            color: #334155;
+        }
+
+        .font-fredoka {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Soft Kawaii Glow Effects */
+        .soft-shadow {
+            box-shadow: 0 10px 25px -5px rgba(244, 114, 182, 0.15), 0 8px 10px -6px rgba(186, 230, 253, 0.2);
+        }
+
+        /* Wheel Tilt Animations */
+        .wheel-left { transform: rotate(-32deg) scale(1.05); }
+        .wheel-right { transform: rotate(32deg) scale(1.05); }
+        .wheel-straight { transform: rotate(0deg) scale(1.02); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #fdf2f8; }
+        ::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-full flex flex-col antialiased select-none min-h-screen">
+
+    <header class="border-b border-pink-100 bg-white/85 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-tr from-pink-400 via-sky-400 to-amber-300 rounded-2xl p-0.5 shadow-sm flex items-center justify-center">
+                    <div class="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+                        <i class="fa-solid fa-wand-magic-sparkles text-pink-500 text-lg"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-fredoka text-xl md:text-2xl font-bold tracking-wide text-slate-800">
+                        KAWAII <span class="text-pink-500">COCKPIT RACER</span> ✨
+                    </h1>
+                    <p class="text-[11px] text-slate-500">駕駛座第一人稱視角 • 雙手方向盤 AI 控制</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 text-xs md:text-sm">
+                <button id="guideBtn" class="px-3.5 py-1.5 rounded-2xl bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 transition flex items-center gap-1.5 font-bold shadow-2xs">
+                    <i class="fa-solid fa-hand-holding-heart text-pink-400"></i> 手勢教學
+                </button>
+                <span id="controlModeBadge" class="px-3.5 py-1.5 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5 font-bold">
+                    <i class="fa-solid fa-keyboard text-amber-500"></i> 鍵盤待命模式
+                </span>
+                <button id="audioToggleBtn" class="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition shadow-2xs">
+                    <i class="fa-solid fa-volume-high text-pink-500" id="audioIcon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Left Controls Sidebar -->
+        <section class="lg:col-span-4 flex flex-col gap-5">
+            
+            <!-- Model URL Card -->
+            <div class="bg-white/90 border border-pink-100 rounded-3xl p-4 soft-shadow backdrop-blur-sm">
+                <h2 class="font-fredoka text-sm font-bold text-slate-800 mb-2.5 flex items-center justify-between">
+                    <span><i class="fa-solid fa-robot text-pink-500 mr-2"></i>Teachable Machine AI 模型</span>
+                    <span class="text-[10px] bg-pink-100 text-pink-700 px-2.5 py-0.5 rounded-full font-bold">Ready</span>
+                </h2>
+                
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">模型網址 (Model URL):</label>
+                        <div class="relative">
+                            <input type="text" id="modelUrlInput" 
+                                value="https://teachablemachine.withgoogle.com/models/Z71OJjH6Y/" 
+                                placeholder="https://teachablemachine.withgoogle.com/models/XXXXXX/"
+                                class="w-full bg-pink-50/50 border border-pink-200 focus:border-pink-400 focus:bg-white rounded-2xl px-3 py-2 text-xs font-mono text-slate-700 outline-none transition shadow-inner">
+                            <button id="resetUrlBtn" class="absolute right-2.5 top-2 text-pink-400 hover:text-pink-600 text-xs" title="重設網址">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="loadModelBtn" class="w-full bg-gradient-to-r from-pink-400 via-rose-400 to-sky-400 hover:brightness-105 text-white font-fredoka font-bold py-2.5 px-4 rounded-2xl shadow-md text-xs flex items-center justify-center gap-2 transition active:scale-98">
+                        <i class="fa-solid fa-camera"></i> 啟用攝影機與 AI 模型
+                    </button>
+
+                    <p id="modelStatus" class="text-xs text-slate-500 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span> 網址已載入，點擊上方按鈕開始辨識。
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-slate-800 via-slate-900 to-pink-950 text-white border border-pink-500/20 rounded-3xl p-4 soft-shadow">
+                <h3 class="text-xs font-bold font-fredoka text-amber-300 mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-dharmachakra"></i> 雙手方向盤操作指示
+                </h3>
+                <p class="text-[11px] text-pink-100 mb-3 leading-relaxed">
+                    請於鏡頭前<strong class="text-white font-bold">雙手握著虛擬方向盤</strong>，左右傾斜來精準轉向：
+                </p>
+                <div class="grid grid-cols-3 gap-2 text-center text-[10px]">
+                    <div class="p-2 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
+                        <div class="text-sky-300 font-bold mb-0.5"><i class="fa-solid fa-hand-back-fist -rotate-45"></i> Class 1</div>
+                        <div class="text-white font-bold">雙手左傾</div>
+                        <div class="text-[9px] text-sky-200">駕駛座左轉</div>
+                    </div>
+                    <div class="p-2 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
+                        <div class="text-emerald-300 font-bold mb-0.5"><i class="fa-solid fa-hand-back-fist"></i> Class 2</div>
+                        <div class="text-white font-bold">雙手平握</div>
+                        <div class="text-[9px] text-emerald-200">加速巡航</div>
+                    </div>
+                    <div class="p-2 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
+                        <div class="text-rose-300 font-bold mb-0.5"><i class="fa-solid fa-hand-back-fist rotate-45"></i> Class 3</div>
+                        <div class="text-white font-bold">雙手右傾</div>
+                        <div class="text-[9px] text-rose-200">駕駛座右轉</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white/90 border border-pink-100 rounded-3xl p-4 soft-shadow flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-fredoka text-xs font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-video text-pink-500"></i> 即時影像與動態檢測
+                    </h3>
+                    <span id="fpsCounter" class="text-[10px] font-mono text-slate-400">FPS: 0</span>
+                </div>
+
+                <!-- Video Viewport -->
+                <div class="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-pink-200 flex items-center justify-center">
+                    <div id="webcamContainer" class="w-full h-full flex items-center justify-center">
+                        <div id="webcamPlaceholder" class="text-center p-4 text-slate-400">
+                            <i class="fa-solid fa-video-slash text-3xl mb-2 text-slate-500 block"></i>
+                            <span class="text-xs">等待開啟攝影機...</span>
+                        </div>
+                    </div>
+
+                    <!-- Steering Wheel Overlay -->
+                    <div id="aiWheelOverlay" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center bg-black/30 backdrop-blur-[1px] opacity-0 transition-opacity duration-200">
+                        <div id="virtualWheelIcon" class="text-5xl text-amber-300 filter drop-shadow-md transition-transform duration-150">
+                            <i class="fa-solid fa-dharmachakra"></i>
+                        </div>
+                        <div id="aiActionBadge" class="mt-2 bg-white/90 text-slate-900 border border-slate-300 font-fredoka px-3 py-1 rounded-xl text-[11px] font-bold shadow-sm">
+                            FORWARD
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confidence Meters -->
+                <div class="space-y-2 pt-1">
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-sky-600 font-bold"><i class="fa-solid fa-arrow-left mr-1"></i> Class 1 (左轉)</span>
+                            <span id="probClass1" class="font-mono font-bold text-sky-600">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden p-0.5 border border-slate-200">
+                            <div id="barClass1" class="bg-sky-400 h-full rounded-full transition-all duration-75" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-emerald-600 font-bold"><i class="fa-solid fa-arrow-up mr-1"></i> Class 2 (直線加速)</span>
+                            <span id="probClass2" class="font-mono font-bold text-emerald-600">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden p-0.5 border border-slate-200">
+                            <div id="barClass2" class="bg-emerald-400 h-full rounded-full transition-all duration-75" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="text-rose-600 font-bold"><i class="fa-solid fa-arrow-right mr-1"></i> Class 3 (右轉)</span>
+                            <span id="probClass3" class="font-mono font-bold text-rose-600">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden p-0.5 border border-slate-200">
+                            <div id="barClass3" class="bg-rose-400 h-full rounded-full transition-all duration-75" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Threshold Slider -->
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>辨識判定門檻:</span>
+                    <span id="thresholdVal" class="font-mono text-pink-600 font-bold">50%</span>
+                </div>
+                <input type="range" id="thresholdSlider" min="30" max="80" value="50" class="w-full accent-pink-500 h-1.5 bg-slate-200 rounded-lg cursor-pointer">
+            </div>
+        </section>
+
+        <!-- Right Game Canvas Section -->
+        <section class="lg:col-span-8 flex flex-col gap-4">
+            
+            <div class="relative bg-white border border-pink-100 rounded-3xl p-2.5 soft-shadow overflow-hidden">
+                
+                <!-- HUD Top Overlay Bar -->
+                <div class="absolute top-5 left-5 right-5 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                    
+                    <!-- Speedometer & Coins -->
+                    <div class="bg-white/90 backdrop-blur-md border border-pink-200 px-4 py-2 rounded-2xl flex items-center gap-4 shadow-sm pointer-events-auto">
+                        <div>
+                            <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">SPEED</div>
+                            <div class="font-fredoka text-2xl font-black text-slate-800 leading-none">
+                                <span id="speedMeter">0</span> <span class="text-[10px] font-normal text-slate-400">KM/H</span>
+                            </div>
+                        </div>
+                        <div class="h-7 w-px bg-pink-100"></div>
+                        <div>
+                            <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">COINS</div>
+                            <div class="font-fredoka text-xl font-bold text-amber-500 leading-none flex items-center gap-1">
+                                🪙 <span id="coinsDisplay">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Score & High Score -->
+                    <div class="bg-white/90 backdrop-blur-md border border-pink-200 px-4 py-2 rounded-2xl flex items-center gap-4 shadow-sm pointer-events-auto">
+                        <div>
+                            <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">SCORE</div>
+                            <div class="font-fredoka text-xl font-bold text-pink-500 leading-none" id="scoreDisplay">
+                                00000
+                            </div>
+                        </div>
+                        <div class="h-7 w-px bg-pink-100"></div>
+                        <div>
+                            <div class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">BEST</div>
+                            <div class="font-fredoka text-lg font-bold text-slate-700 leading-none" id="highScoreDisplay">
+                                00000
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1st Person Cockpit Game Canvas -->
+                <div class="relative w-full aspect-[4/3] md:aspect-[16/10] bg-sky-100 rounded-2xl overflow-hidden border border-pink-100 shadow-inner">
+                    <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+                    <!-- Game Overlay UI Screens -->
+                    <div id="gameOverlay" class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center text-white">
+                        
+                        <!-- Start Screen -->
+                        <div id="startScreen" class="max-w-md w-full space-y-5">
+                            <div class="inline-block p-4 rounded-3xl bg-pink-500/20 border border-pink-400/30 mb-1">
+                                <i class="fa-solid fa-car text-4xl text-pink-300"></i>
+                            </div>
+                            <h2 class="font-fredoka text-3xl font-extrabold tracking-wide text-white">
+                                KAWAII <span class="text-pink-300">COCKPIT RACER</span>
+                            </h2>
+                            
+                            <div class="text-left bg-slate-800/90 p-4 rounded-2xl border border-slate-700 text-xs space-y-2.5">
+                                <div class="font-bold text-amber-300 font-fredoka flex items-center gap-2 text-sm">
+                                    <i class="fa-solid fa-star"></i> 駕駛座第一人稱視角說明
+                                </div>
+                                <p class="text-slate-200 leading-relaxed">
+                                    🚘 <strong>視角體驗：</strong> 你正坐在充滿可愛質感駕駛座內，前方儀表板與方向盤會<strong class="text-pink-300">隨你的手勢轉向同步旋轉</strong>！
+                                </p>
+                                <p class="text-slate-200 leading-relaxed">
+                                    🛣️ <strong>路上物品：</strong> 金幣 🪙 與防撞角錐 🚧 會在前方遠處公路地平線上出現，並迎面而來。
+                                </p>
+                                <p class="text-slate-200 leading-relaxed">
+                                    🎮 <strong>操控：</strong> 擺出雙手方向盤手勢或按鍵盤 <kbd class="px-1.5 py-0.5 bg-slate-700 text-pink-300 rounded border border-slate-600">A/D/W</kbd> 避讓與收集。
+                                </p>
+                            </div>
+
+                            <button id="startGameBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-400 via-rose-400 to-sky-400 hover:brightness-110 text-white font-fredoka font-bold text-base tracking-wider shadow-lg transition active:scale-98">
+                                <i class="fa-solid fa-play mr-2"></i>開始駕駛 START GAME
+                            </button>
+                        </div>
+
+                        <!-- Game Over Screen -->
+                        <div id="gameOverScreen" class="max-w-md w-full space-y-5 hidden">
+                            <div class="inline-block p-4 rounded-3xl bg-rose-500/20 border border-rose-500/40 mb-1">
+                                <i class="fa-solid fa-heart-crack text-4xl text-rose-300"></i>
+                            </div>
+                            <h2 class="font-fredoka text-3xl font-bold text-rose-300 tracking-wider">
+                                OOPS! CRASHED!
+                            </h2>
+                            <div class="bg-slate-800/90 p-4 rounded-2xl border border-slate-700 space-y-2 text-left text-xs">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-300">最終得分:</span>
+                                    <span id="finalScoreVal" class="font-fredoka text-amber-300 font-bold text-base">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-300">收集金幣:</span>
+                                    <span id="finalCoinsVal" class="font-fredoka text-amber-300 font-bold">0 🪙</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-slate-300">行駛距離:</span>
+                                    <span id="finalDistanceVal" class="font-fredoka text-sky-300 font-bold">0 m</span>
+                                </div>
+                            </div>
+                            <button id="restartGameBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-400 to-sky-400 hover:brightness-110 text-white font-fredoka font-bold text-base tracking-wider shadow-lg transition">
+                                <i class="fa-solid fa-rotate-right mr-2"></i>再試一次 PLAY AGAIN
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Control Strip -->
+                <div class="mt-2 p-3 bg-pink-50/50 rounded-2xl border border-pink-100 flex flex-wrap items-center justify-between gap-4 text-xs">
+                    <div class="flex items-center gap-3 text-slate-600">
+                        <span class="font-bold text-slate-800 font-fredoka">KEYBOARD:</span>
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-white border border-pink-200 font-mono text-slate-700 shadow-2xs">← / A</kbd> 向左轉方向盤</span>
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-white border border-pink-200 font-mono text-slate-700 shadow-2xs">↑ / W</kbd> 保持前進</span>
+                        <span class="flex items-center gap-1"><kbd class="px-1.5 py-0.5 rounded bg-white border border-pink-200 font-mono text-slate-700 shadow-2xs">→ / D</kbd> 向右轉方向盤</span>
+                    </div>
+
+                    <button id="pauseBtn" class="px-3.5 py-1.5 rounded-xl bg-white hover:bg-pink-50 text-slate-700 border border-pink-200 font-bold transition shadow-2xs">
+                        <i class="fa-solid fa-pause mr-1"></i> 暫停
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Instructions Dialog -->
+    <div id="instructionsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white border border-pink-200 rounded-3xl max-w-lg w-full p-6 shadow-xl relative space-y-4">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-fredoka text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-hand-holding-heart text-pink-500"></i> 雙手方向盤操作技巧
+            </h3>
+            <p class="text-xs text-slate-600 leading-relaxed">
+                本遊戲為**駕駛座第一人稱視角**。坐在鏡頭前，雙手於胸前做出**握著方向盤**動作：
+            </p>
+            <div class="space-y-2.5 text-xs">
+                <div class="p-3 rounded-2xl bg-pink-50/60 border border-pink-100 flex items-center gap-3">
+                    <span class="text-2xl text-sky-500"><i class="fa-solid fa-hand-back-fist -rotate-45"></i></span>
+                    <div>
+                        <strong class="text-sky-700">Class 1 (向左轉)：</strong> 雙手向左旋轉，駕駛座方向盤跟著左轉，視角向左避讓。
+                    </div>
+                </div>
+                <div class="p-3 rounded-2xl bg-pink-50/60 border border-pink-100 flex items-center gap-3">
+                    <span class="text-2xl text-emerald-500"><i class="fa-solid fa-hand-back-fist"></i></span>
+                    <div>
+                        <strong class="text-emerald-700">Class 2 (直線加速)：</strong> 雙手平握方向盤，車輛穩定向前行駛。
+                    </div>
+                </div>
+                <div class="p-3 rounded-2xl bg-pink-50/60 border border-pink-100 flex items-center gap-3">
+                    <span class="text-2xl text-rose-500"><i class="fa-solid fa-hand-back-fist rotate-45"></i></span>
+                    <div>
+                        <strong class="text-rose-700">Class 3 (向右轉)：</strong> 雙手向右旋轉，駕駛座方向盤跟著右轉，視角向右避讓。
+                    </div>
+                </div>
+            </div>
+            <div class="pt-2 text-right">
+                <button id="modalUnderstandBtn" class="px-5 py-2 rounded-2xl bg-pink-500 hover:bg-pink-600 text-white font-fredoka text-xs font-bold shadow-md transition">
+                    我明白了，開始體驗！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Configuration Parameters (Slower, Smooth Speeds)
+        // ==========================================
+        const CONFIG = {
+            DEFAULT_MODEL_URL: 'https://teachablemachine.withgoogle.com/models/Z71OJjH6Y/',
+            CANVAS_WIDTH: 800,
+            CANVAS_HEIGHT: 500,
+            PLAYER_BASE_SPEED: 0.005,  
+            PLAYER_BOOST_SPEED: 0.012, 
+            SMOOTHING_FACTOR: 0.2,
+            HORIZON_Y_RATIO: 0.38 // Cockpit Horizon level
+        };
+
+        // Sound Engine (Web Audio API)
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.engineOsc = null;
+                this.engineGain = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                    
+                    this.engineOsc = this.ctx.createOscillator();
+                    this.engineGain = this.ctx.createGain();
+                    
+                    this.engineOsc.type = 'triangle';
+                    this.engineOsc.frequency.setValueAtTime(55, this.ctx.currentTime);
+                    this.engineGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 320;
+
+                    this.engineOsc.connect(filter);
+                    filter.connect(this.engineGain);
+                    this.engineGain.connect(this.ctx.destination);
+                    this.engineOsc.start();
+                } catch(e) {}
+            }
+
+            updateEngine(speedRatio) {
+                if (!this.ctx || !this.enabled || !this.engineOsc) return;
+                const pitch = 50 + speedRatio * 110;
+                const vol = 0.01 + speedRatio * 0.025;
+                this.engineOsc.frequency.setTargetAtTime(pitch, this.ctx.currentTime, 0.08);
+                this.engineGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.08);
+            }
+
+            playCoin() {
+                if (!this.ctx || !this.enabled) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(987.77, this.ctx.currentTime);
+                    osc.frequency.setValueAtTime(1318.51, this.ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.25);
+                } catch(e){}
+            }
+
+            playCrash() {
+                if (!this.ctx || !this.enabled) return;
+                try {
+                    const bufferSize = this.ctx.sampleRate * 0.35;
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const output = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
+                    noise.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    noise.start();
+                } catch(e){}
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+                if (!this.enabled && this.engineGain) {
+                    this.engineGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                }
+                return this.enabled;
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        // Teachable Machine AI Pipeline
+        let tmModel = null;
+        let webcamPlayer = null;
+        let isModelLoaded = false;
+        let isAiActive = false;
+        let confidenceThreshold = 0.50;
+
+        const predictions = { class1: 0, class2: 0, class3: 0 };
+        const smoothedProbs = { class1: 0, class2: 0, class3: 0 };
+        let activeAiAction = null; 
+
+        const ui = {
+            modelUrlInput: document.getElementById('modelUrlInput'),
+            loadModelBtn: document.getElementById('loadModelBtn'),
+            resetUrlBtn: document.getElementById('resetUrlBtn'),
+            modelStatus: document.getElementById('modelStatus'),
+            webcamContainer: document.getElementById('webcamContainer'),
+            fpsCounter: document.getElementById('fpsCounter'),
+            controlModeBadge: document.getElementById('controlModeBadge'),
+            thresholdSlider: document.getElementById('thresholdSlider'),
+            thresholdVal: document.getElementById('thresholdVal'),
+            barClass1: document.getElementById('barClass1'),
+            barClass2: document.getElementById('barClass2'),
+            barClass3: document.getElementById('barClass3'),
+            probClass1: document.getElementById('probClass1'),
+            probClass2: document.getElementById('probClass2'),
+            probClass3: document.getElementById('probClass3'),
+            aiWheelOverlay: document.getElementById('aiWheelOverlay'),
+            virtualWheelIcon: document.getElementById('virtualWheelIcon'),
+            aiActionBadge: document.getElementById('aiActionBadge')
+        };
+
+        ui.thresholdSlider.addEventListener('input', (e) => {
+            confidenceThreshold = e.target.value / 100;
+            ui.thresholdVal.innerText = `${e.target.value}%`;
+        });
+
+        ui.resetUrlBtn.addEventListener('click', () => {
+            ui.modelUrlInput.value = CONFIG.DEFAULT_MODEL_URL;
+        });
+
+        async function loadTeachableMachineModel() {
+            let modelURL = ui.modelUrlInput.value.trim();
+            if (!modelURL) {
+                updateStatus('請輸入有效的 Teachable Machine 模型網址！', 'error');
+                return;
+            }
+            if (!modelURL.endsWith('/')) modelURL += '/';
+
+            const modelPath = modelURL + 'model.json';
+            const metadataPath = modelURL + 'metadata.json';
+
+            updateStatus('正在載入模型與開啟攝影機...', 'loading');
+            ui.loadModelBtn.disabled = true;
+            ui.loadModelBtn.classList.add('opacity-50');
+
+            try {
+                tmModel = await tmImage.load(modelPath, metadataPath);
+                
+                const flip = true;
+                webcamPlayer = new tmImage.Webcam(240, 180, flip);
+                await webcamPlayer.setup(); 
+                await webcamPlayer.play();
+
+                ui.webcamContainer.innerHTML = '';
+                ui.webcamContainer.appendChild(webcamPlayer.canvas);
+                webcamPlayer.canvas.className = 'w-full h-full object-cover rounded-2xl';
+
+                isModelLoaded = true;
+                isAiActive = true;
+
+                updateStatus(`模型載入成功！手勢辨識運作中`, 'success');
+                ui.controlModeBadge.innerHTML = `<i class="fa-solid fa-robot text-pink-500"></i> AI 手勢控制中`;
+                ui.controlModeBadge.className = "px-3.5 py-1.5 rounded-2xl bg-pink-100 text-pink-700 border border-pink-200 flex items-center gap-1.5 font-bold";
+
+                window.requestAnimationFrame(predictLoop);
+
+            } catch (error) {
+                console.error("AI Model Error:", error);
+                updateStatus('載入失敗！請確認網址是否正確或開啟權限', 'error');
+                ui.loadModelBtn.disabled = false;
+                ui.loadModelBtn.classList.remove('opacity-50');
+            }
+        }
+
+        function updateStatus(msg, type) {
+            let color = 'text-slate-500';
+            let dot = 'bg-slate-300';
+            if (type === 'loading') { color = 'text-amber-600'; dot = 'bg-amber-400 animate-ping'; }
+            if (type === 'success') { color = 'text-emerald-600'; dot = 'bg-emerald-400'; }
+            if (type === 'error') { color = 'text-rose-600'; dot = 'bg-rose-400'; }
+
+            ui.modelStatus.className = `text-xs ${color} flex items-center gap-2`;
+            ui.modelStatus.innerHTML = `<span class="w-2.5 h-2.5 rounded-full ${dot} inline-block"></span> ${msg}`;
+        }
+
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        async function predictLoop() {
+            if (!isModelLoaded || !webcamPlayer) return;
+
+            webcamPlayer.update();
+            const predictionList = await tmModel.predict(webcamPlayer.canvas);
+
+            predictionList.forEach((pred, idx) => {
+                const name = pred.className.toLowerCase();
+                const prob = pred.probability;
+
+                if (idx === 0 || name.includes('class1') || name.includes('left') || name.includes('1')) {
+                    predictions.class1 = prob;
+                }
+                if (idx === 1 || name.includes('class2') || name.includes('straight') || name.includes('2')) {
+                    predictions.class2 = prob;
+                }
+                if (idx === 2 || name.includes('class3') || name.includes('right') || name.includes('3')) {
+                    predictions.class3 = prob;
+                }
+            });
+
+            smoothedProbs.class1 += (predictions.class1 - smoothedProbs.class1) * CONFIG.SMOOTHING_FACTOR;
+            smoothedProbs.class2 += (predictions.class2 - smoothedProbs.class2) * CONFIG.SMOOTHING_FACTOR;
+            smoothedProbs.class3 += (predictions.class3 - smoothedProbs.class3) * CONFIG.SMOOTHING_FACTOR;
+
+            updateHUDMeters();
+
+            const now = performance.now();
+            frameCount++;
+            if (now - lastTime >= 1000) {
+                ui.fpsCounter.innerText = `FPS: ${frameCount}`;
+                frameCount = 0;
+                lastTime = now;
+            }
+
+            window.requestAnimationFrame(predictLoop);
+        }
+
+        function updateHUDMeters() {
+            const p1 = Math.round(smoothedProbs.class1 * 100);
+            const p2 = Math.round(smoothedProbs.class2 * 100);
+            const p3 = Math.round(smoothedProbs.class3 * 100);
+
+            ui.barClass1.style.width = `${p1}%`;
+            ui.barClass2.style.width = `${p2}%`;
+            ui.barClass3.style.width = `${p3}%`;
+
+            ui.probClass1.innerText = `${p1}%`;
+            ui.probClass2.innerText = `${p2}%`;
+            ui.probClass3.innerText = `${p3}%`;
+
+            activeAiAction = null;
+            if (smoothedProbs.class1 > confidenceThreshold && smoothedProbs.class1 > smoothedProbs.class2 && smoothedProbs.class1 > smoothedProbs.class3) {
+                activeAiAction = 'LEFT';
+            } else if (smoothedProbs.class2 > confidenceThreshold && smoothedProbs.class2 > smoothedProbs.class1 && smoothedProbs.class2 > smoothedProbs.class3) {
+                activeAiAction = 'STRAIGHT';
+            } else if (smoothedProbs.class3 > confidenceThreshold && smoothedProbs.class3 > smoothedProbs.class1 && smoothedProbs.class3 > smoothedProbs.class2) {
+                activeAiAction = 'RIGHT';
+            }
+
+            if (activeAiAction) {
+                ui.aiWheelOverlay.style.opacity = '1';
+                if (activeAiAction === 'LEFT') {
+                    ui.virtualWheelIcon.className = "text-5xl text-sky-400 wheel-left transition-transform duration-150";
+                    ui.aiActionBadge.innerText = "CLASS 1: 左轉";
+                    ui.aiActionBadge.className = "mt-2 bg-white text-sky-700 border border-sky-300 font-fredoka px-3 py-1 rounded-xl text-xs font-bold shadow-sm";
+                } else if (activeAiAction === 'STRAIGHT') {
+                    ui.virtualWheelIcon.className = "text-5xl text-emerald-400 wheel-straight transition-transform duration-150";
+                    ui.aiActionBadge.innerText = "CLASS 2: 前進";
+                    ui.aiActionBadge.className = "mt-2 bg-white text-emerald-700 border border-emerald-300 font-fredoka px-3 py-1 rounded-xl text-xs font-bold shadow-sm";
+                } else if (activeAiAction === 'RIGHT') {
+                    ui.virtualWheelIcon.className = "text-5xl text-rose-400 wheel-right transition-transform duration-150";
+                    ui.aiActionBadge.innerText = "CLASS 3: 右轉";
+                    ui.aiActionBadge.className = "mt-2 bg-white text-rose-700 border border-rose-300 font-fredoka px-3 py-1 rounded-xl text-xs font-bold shadow-sm";
+                }
+            } else {
+                ui.aiWheelOverlay.style.opacity = '0';
+            }
+        }
+
+        ui.loadModelBtn.addEventListener('click', loadTeachableMachineModel);
+
+        // ==========================================
+        // Cockpit 1st Person Racing Canvas Engine
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = CONFIG.CANVAS_WIDTH;
+            canvas.height = CONFIG.CANVAS_HEIGHT;
+        }
+        resizeCanvas();
+
+        const keys = { left: false, right: false, up: false };
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+        });
+
+        // Game State Variables
+        let gameState = 'START';
+        let score = 0;
+        let coinsCollected = 0;
+        let highScore = localStorage.getItem('daylight_high_score') || 0;
+        let distance = 0;
+        let playerSpeed = 0;
+        let targetSpeed = 0;
+
+        document.getElementById('highScoreDisplay').innerText = String(highScore).padStart(5, '0');
+
+        const player = {
+            normX: 0,
+            steeringAngle: 0 // Dynamic steering angle for cockpit wheel
+        };
+
+        let roadPos = 0;
+        let roadCurve = 0;
+        let targetCurve = 0;
+        let curveTimer = 0;
+
+        let roadObjects = [];
+
+        // Spawn objects at far horizon (z = 1.0)
+        function spawnRoadObject() {
+            const lanePositions = [-0.66, 0.0, 0.66];
+            const pattern = Math.random();
+
+            if (pattern < 0.18) {
+                // 單一車道的縱向金幣 (調少數量為 2 個，拉開間距)
+                const lane = lanePositions[Math.floor(Math.random() * lanePositions.length)];
+                for (let i = 0; i < 2; i++) {
+                    roadObjects.push({
+                        type: 'COIN',
+                        normX: lane,
+                        z: 1.0 + (i * 0.28),
+                        speedFactor: 0.0
+                    });
+                }
+            } else {
+                // 單一線道獨立物件 (金幣機率降至 22%)
+                const lane = lanePositions[Math.floor(Math.random() * lanePositions.length)];
+                const objType = Math.random() < 0.22 ? 'COIN' : (Math.random() < 0.70 ? 'OBSTACLE' : 'TRAFFIC');
+                roadObjects.push({
+                    type: objType,
+                    normX: lane,
+                    z: 1.0,
+                    speedFactor: objType === 'TRAFFIC' ? 0.22 : 0.0,
+                    color: objType === 'TRAFFIC' ? (Math.random() < 0.5 ? '#f472b6' : '#38bdf8') : null
+                });
+            }
+
+            // Roadside Scenery Props (Trees along grass shoulders)
+            if (Math.random() < 0.65) {
+                roadObjects.push({
+                    type: 'TREE',
+                    normX: -1.35,
+                    z: 1.0,
+                    speedFactor: 0.0
+                });
+            }
+            if (Math.random() < 0.65) {
+                roadObjects.push({
+                    type: 'TREE',
+                    normX: 1.35,
+                    z: 1.0,
+                    speedFactor: 0.0
+                });
+            }
+        }
+
+        let itemSpawnTimer = 0;
+
+        function updateGame() {
+            if (gameState !== 'PLAYING') return;
+
+            // Controls
+            let isTurningLeft = keys.left || (isAiActive && activeAiAction === 'LEFT');
+            let isTurningRight = keys.right || (isAiActive && activeAiAction === 'RIGHT');
+            let isAccelerating = keys.up || (isAiActive && activeAiAction === 'STRAIGHT');
+
+            // Speed calculation
+            targetSpeed = isAccelerating ? CONFIG.PLAYER_BOOST_SPEED : CONFIG.PLAYER_BASE_SPEED;
+            playerSpeed += (targetSpeed - playerSpeed) * 0.05;
+            
+            roadPos += playerSpeed;
+            distance += playerSpeed * 300;
+            score += Math.round(playerSpeed * 600);
+
+            audio.updateEngine(playerSpeed / CONFIG.PLAYER_BOOST_SPEED);
+
+            // Smooth Steering & Cockpit Wheel Angle
+            let steerVel = 0;
+            if (isTurningLeft) steerVel -= 0.025;
+            if (isTurningRight) steerVel += 0.025;
+
+            player.normX += steerVel;
+            
+            // Cockpit steering wheel angle smoothing
+            let targetSteerAngle = 0;
+            if (isTurningLeft) targetSteerAngle = -42;
+            if (isTurningRight) targetSteerAngle = 42;
+            player.steeringAngle += (targetSteerAngle - player.steeringAngle) * 0.2;
+
+            if (player.normX < -0.82) player.normX = -0.82;
+            if (player.normX > 0.82) player.normX = 0.82;
+
+            // 保持直道穩定，防止動態彎道自動將車輛拉回中央
+            roadCurve = 0;
+            targetCurve = 0;
+
+            // Objects Update - Balanced spawn rate with fewer coins
+            itemSpawnTimer++;
+            if (itemSpawnTimer > Math.max(26, 45 - Math.floor(distance / 200))) {
+                spawnRoadObject();
+                itemSpawnTimer = 0;
+            }
+
+            for (let i = roadObjects.length - 1; i >= 0; i--) {
+                const obj = roadObjects[i];
+                
+                const moveSpeed = playerSpeed - (obj.speedFactor * CONFIG.PLAYER_BASE_SPEED);
+                obj.z -= moveSpeed * 1.2;
+
+                // Hit Detection when object reaches windshield view (z ~ 0)
+                if (obj.z <= 0.08 && obj.z >= -0.05) {
+                    const dx = Math.abs(obj.normX - player.normX);
+                    
+                    if (dx < 0.26) {
+                        if (obj.type === 'COIN') {
+                            coinsCollected++;
+                            score += 250;
+                            audio.playCoin();
+                            roadObjects.splice(i, 1);
+                            continue;
+                        } else if (obj.type === 'OBSTACLE' || obj.type === 'TRAFFIC') {
+                            triggerGameOver();
+                            return;
+                        }
+                    }
+                }
+
+                if (obj.z < -0.15) {
+                    roadObjects.splice(i, 1);
+                }
+            }
+
+            // HUD Updates
+            document.getElementById('speedMeter').innerText = Math.round(playerSpeed * 8000);
+            document.getElementById('scoreDisplay').innerText = String(score).padStart(5, '0');
+            document.getElementById('coinsDisplay').innerText = coinsCollected;
+        }
+
+        // Projection Helper Functions
+        const horizonY = CONFIG.CANVAS_HEIGHT * CONFIG.HORIZON_Y_RATIO;
+        const roadHeight = CONFIG.CANVAS_HEIGHT - horizonY;
+
+        function getScreenY(z) {
+            const scaleFactor = Math.pow(1 - z, 2.0);
+            return horizonY + roadHeight * scaleFactor;
+        }
+
+        function getRoadWidth(z) {
+            const minW = 60;  
+            const maxW = 770; 
+            return minW + (maxW - minW) * Math.pow(1 - z, 2.0);
+        }
+
+        function getScreenX(normX, z) {
+            const center = canvas.width / 2 + (roadCurve - player.normX) * Math.pow(1 - z, 1.8) * 250;
+            const w = getRoadWidth(z);
+            return center + (normX * (w / 2));
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Cute Bright Sky Gradient (蔚藍晴空漸層)
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#38bdf8'); // 鮮艷天空藍
+            skyGrad.addColorStop(0.6, '#7dd3fc');
+            skyGrad.addColorStop(1, '#e0f2fe');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, horizonY);
+
+            // Cute Smiling Sun in Sky
+            const sunX = canvas.width / 2 + 130 + (player.normX * 30);
+            const sunY = horizonY - 45;
+            
+            // Soft Sun Rays
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.4)';
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 48, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sun Face
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 32, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cute Blushing Sun Eyes & Smile
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.arc(sunX - 10, sunY - 4, 3, 0, Math.PI * 2);
+            ctx.arc(sunX + 10, sunY - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fb7185'; // Pink Blushes
+            ctx.beginPath();
+            ctx.arc(sunX - 15, sunY + 4, 4, 0, Math.PI * 2);
+            ctx.arc(sunX + 15, sunY + 4, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY + 2, 7, 0.1 * Math.PI, 0.9 * Math.PI);
+            ctx.stroke();
+
+            // Cute Floating Clouds
+            const cloudOffset = (roadPos * 30) % canvas.width;
+            drawCloud(120 - cloudOffset, horizonY - 50, 0.8);
+            drawCloud(520 - cloudOffset, horizonY - 65, 1.1);
+            drawCloud(880 - cloudOffset, horizonY - 45, 0.9);
+
+            // Macaron Lavender Hills
+            ctx.fillStyle = '#e9d5ff';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            ctx.lineTo(120, horizonY - 18);
+            ctx.lineTo(280, horizonY);
+            ctx.lineTo(500, horizonY - 26);
+            ctx.lineTo(720, horizonY);
+            ctx.lineTo(800, horizonY - 14);
+            ctx.lineTo(800, horizonY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Macaron Mint Grass Shoulder Sides (#a7f3d0)
+            ctx.fillStyle = '#a7f3d0';
+            ctx.fillRect(0, horizonY, canvas.width, roadHeight);
+
+            // 2. Render Soft Slate Asphalt Road Surface
+            ctx.save();
+            ctx.beginPath();
+            
+            const topLeftX = getScreenX(-1, 1.0);
+            const topRightX = getScreenX(1, 1.0);
+            const bottomLeftX = getScreenX(-1, 0.0);
+            const bottomRightX = getScreenX(1, 0.0);
+
+            ctx.moveTo(topLeftX, horizonY);
+            ctx.lineTo(topRightX, horizonY);
+            ctx.lineTo(bottomRightX, canvas.height);
+            ctx.lineTo(bottomLeftX, canvas.height);
+            ctx.closePath();
+
+            ctx.fillStyle = '#475569'; // Muted Slate
+            ctx.fill();
+
+            // Macaron Strawberry Pink & Vanilla Cream White Curbstones
+            const segmentCount = 16;
+            for (let i = 0; i < segmentCount; i++) {
+                const z1 = (i / segmentCount + (roadPos * 2.0) % (1 / segmentCount));
+                const z2 = z1 + (1 / segmentCount);
+                if (z1 < 0 || z1 > 1) continue;
+
+                const color = Math.floor((i + roadPos * 30) % 2) === 0 ? '#f472b6' : '#fff8f8';
+                
+                // Left curb
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.moveTo(getScreenX(-1, z1), getScreenY(z1));
+                ctx.lineTo(getScreenX(-1.08, z1), getScreenY(z1));
+                ctx.lineTo(getScreenX(-1.08, z2), getScreenY(z2));
+                ctx.lineTo(getScreenX(-1, z2), getScreenY(z2));
+                ctx.fill();
+
+                // Right curb
+                ctx.beginPath();
+                ctx.moveTo(getScreenX(1, z1), getScreenY(z1));
+                ctx.lineTo(getScreenX(1.08, z1), getScreenY(z1));
+                ctx.lineTo(getScreenX(1.08, z2), getScreenY(z2));
+                ctx.lineTo(getScreenX(1, z2), getScreenY(z2));
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // 3-Lane Dashed Soft Yellow Lines
+            ctx.save();
+            ctx.strokeStyle = '#fef08a';
+            ctx.lineWidth = 3;
+            const stripeCount = 10;
+            for (let i = 0; i < stripeCount; i++) {
+                const z = ((i / stripeCount) + (roadPos * 2.5) % (1 / stripeCount));
+                if (z < 0 || z > 1) continue;
+
+                const sy = getScreenY(z);
+                const sx1 = getScreenX(-0.33, z);
+                const sx2 = getScreenX(0.33, z);
+
+                ctx.beginPath();
+                ctx.moveTo(sx1, sy);
+                ctx.lineTo(sx1, sy + (1 - z) * 16);
+                ctx.moveTo(sx2, sy);
+                ctx.lineTo(sx2, sy + (1 - z) * 16);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 3. Render Objects Emerging from Horizon (Far to Near)
+            roadObjects.sort((a, b) => b.z - a.z);
+
+            roadObjects.forEach(obj => {
+                if (obj.z > 0.98 || obj.z < -0.1) return;
+
+                const sy = getScreenY(obj.z);
+                const sx = getScreenX(obj.normX, obj.z);
+                const scale = Math.max(0.12, Math.pow(1 - obj.z, 2.0));
+
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.scale(scale, scale);
+
+                if (obj.type === 'COIN') {
+                    // 🪙 Gold Coin
+                    ctx.fillStyle = '#fde047';
+                    ctx.beginPath();
+                    ctx.arc(0, -18, 18, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#eab308';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#854d0e';
+                    ctx.font = 'bold 18px Fredoka, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('$', 0, -17);
+
+                    // Sparkle stars around coin
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(-10, -28, 3, 0, Math.PI * 2);
+                    ctx.arc(12, -8, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                } else if (obj.type === 'OBSTACLE') {
+                    // 🚧 Cute Traffic Cone
+                    ctx.save();
+                    ctx.scale(1.5, 1.5);
+
+                    // Base Plate
+                    ctx.fillStyle = '#334155';
+                    ctx.fillRect(-22, -2, 44, 6);
+
+                    // Cone Body
+                    ctx.fillStyle = '#fb923c';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -48);
+                    ctx.lineTo(19, 0);
+                    ctx.lineTo(-19, 0);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // White Band
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.moveTo(-11, -20);
+                    ctx.lineTo(11, -20);
+                    ctx.lineTo(7, -32);
+                    ctx.lineTo(-7, -32);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.restore();
+
+                } else if (obj.type === 'TRAFFIC') {
+                    // 🚘 Opponent Vehicle
+                    drawCar(0, 0, obj.color);
+                } else if (obj.type === 'TREE') {
+                    // 🌲 Cute Pastel Roadside Tree
+                    ctx.fillStyle = '#854d0e';
+                    ctx.fillRect(-5, -10, 10, 12);
+
+                    ctx.fillStyle = '#6ee7b7';
+                    ctx.beginPath();
+                    ctx.arc(0, -30, 22, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#f472b6';
+                    ctx.beginPath();
+                    ctx.arc(-8, -34, 4, 0, Math.PI * 2);
+                    ctx.arc(8, -26, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            });
+
+            // 4. Render 1st Person Cockpit Interior Overlay
+            drawCockpitView();
+        }
+
+        function drawCloud(x, y, scale) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.arc(x, y, 20 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 18 * scale, y - 8 * scale, 16 * scale, 0, Math.PI * 2);
+            ctx.arc(x + 36 * scale, y, 18 * scale, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Draw Opponent Car Model
+        function drawCar(x, y, bodyColor) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            const w = 52;
+            const h = 76;
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w * 0.55, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.roundRect(-w / 2, -h, w, h, [12, 12, 8, 8]);
+            ctx.fill();
+
+            // Cabin Glass
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(-w / 2 + 7, -h + 22, w - 14, h * 0.36, [5, 5, 3, 3]);
+            ctx.fill();
+
+            // Headlights
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(-w / 2 + 5, -8, 10, 4);
+            ctx.fillRect(w / 2 - 15, -8, 10, 4);
+
+            ctx.restore();
+
+        }
+
+        // 1st Person Cockpit Drawer
+        function drawCockpitView() {
+            ctx.save();
+
+            // A-Pillars / Windshield Frame (Left and Right Frame Borders)
+            ctx.fillStyle = '#1e293b'; // Slate interior trim
+            
+            // Left Pillar
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(85, 0);
+            ctx.lineTo(30, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Right Pillar
+            ctx.beginPath();
+            ctx.moveTo(canvas.width, 0);
+            ctx.lineTo(canvas.width - 85, 0);
+            ctx.lineTo(canvas.width - 30, canvas.height);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Main Dashboard Base
+            const dashY = canvas.height - 110;
+            
+            ctx.fillStyle = '#334155'; // Dark slate dashboard body
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.lineTo(30, dashY);
+            ctx.lineTo(canvas.width - 30, dashY);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Pastel Dashboard Trim Strip
+            ctx.fillStyle = '#f472b6'; // Cute pink accent line
+            ctx.fillRect(28, dashY, canvas.width - 56, 6);
+
+            // Dashboard Digital Speed Display
+            const centerX = canvas.width / 2;
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(centerX - 60, dashY + 12, 120, 32, 10);
+            ctx.fill();
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 16px Fredoka, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${Math.round(playerSpeed * 8000)} KM/H`, centerX, dashY + 33);
+
+            // Dynamic Animated Steering Wheel in Cockpit Foreground
+            ctx.save();
+            ctx.translate(centerX, canvas.height - 25);
+            ctx.rotate((player.steeringAngle * Math.PI) / 180);
+
+            // Wheel Outer Rim
+            ctx.strokeStyle = '#f472b6'; // Pink leather steering wheel
+            ctx.lineWidth = 18;
+            ctx.beginPath();
+            ctx.arc(0, 0, 85, Math.PI * 0.85, Math.PI * 2.15, true); // Open top sports steering wheel
+            ctx.stroke();
+
+            // Wheel Grip Accents
+            ctx.strokeStyle = '#bae6fd';
+            ctx.lineWidth = 18;
+            ctx.beginPath();
+            ctx.arc(0, 0, 85, Math.PI * 1.1, Math.PI * 1.3);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, 0, 85, Math.PI * 1.7, Math.PI * 1.9);
+            ctx.stroke();
+
+            // Wheel Center Hub & Spokes
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(0, 0, 26, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Center Badge
+            ctx.fillStyle = '#f472b6';
+            ctx.beginPath();
+            ctx.arc(0, 0, 16, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('AI', 0, 1);
+
+            // Spokes
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 12;
+            ctx.beginPath();
+            ctx.moveTo(-82, 0);
+            ctx.lineTo(-24, 0);
+            ctx.moveTo(82, 0);
+            ctx.lineTo(24, 0);
+            ctx.moveTo(0, 24);
+            ctx.lineTo(0, 82);
+            ctx.stroke();
+
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        // Game Loop
+        function gameLoop() {
+            updateGame();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            audio.playCrash();
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('daylight_high_score', highScore);
+                document.getElementById('highScoreDisplay').innerText = String(highScore).padStart(5, '0');
+            }
+
+            document.getElementById('finalScoreVal').innerText = score;
+            document.getElementById('finalCoinsVal').innerText = `${coinsCollected} 🪙`;
+            document.getElementById('finalDistanceVal').innerText = `${Math.round(distance)} m`;
+
+            document.getElementById('gameOverlay').classList.remove('hidden');
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            score = 0;
+            coinsCollected = 0;
+            distance = 0;
+            playerSpeed = 0;
+            player.normX = 0;
+            player.steeringAngle = 0;
+            roadObjects = [];
+            roadCurve = 0;
+        }
+
+        // Button Event Handlers
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            audio.init();
+            resetGame();
+            gameState = 'PLAYING';
+            document.getElementById('gameOverlay').classList.add('hidden');
+        });
+
+        document.getElementById('restartGameBtn').addEventListener('click', () => {
+            resetGame();
+            gameState = 'PLAYING';
+            document.getElementById('gameOverlay').classList.add('hidden');
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                document.getElementById('pauseBtn').innerHTML = `<i class="fa-solid fa-play mr-1"></i> 繼續`;
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                document.getElementById('pauseBtn').innerHTML = `<i class="fa-solid fa-pause mr-1"></i> 暫停`;
+            }
+        });
+
+        document.getElementById('audioToggleBtn').addEventListener('click', () => {
+            const enabled = audio.toggle();
+            document.getElementById('audioIcon').className = enabled ? 'fa-solid fa-volume-high text-pink-500' : 'fa-solid fa-volume-xmark text-slate-400';
+        });
+
+        // Modal Listeners
+        const instructionsModal = document.getElementById('instructionsModal');
+        document.getElementById('guideBtn').addEventListener('click', () => {
+            instructionsModal.classList.remove('hidden');
+        });
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            instructionsModal.classList.add('hidden');
+        });
+        document.getElementById('modalUnderstandBtn').addEventListener('click', () => {
+            instructionsModal.classList.add('hidden');
+        });
+
+        window.onload = () => {
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
