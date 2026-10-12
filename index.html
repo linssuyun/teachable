@@ -555,7 +555,8 @@
                 
                 const flip = true;
                 webcamPlayer = new tmImage.Webcam(240, 180, flip);
-                await webcamPlayer.setup(); 
+                // 傳入 facingMode: "user" 參數，強制請求標準前置彩色鏡頭，避免抓到筆電紅外線 (IR) 黑白鏡頭
+                await webcamPlayer.setup({ facingMode: "user" }); 
                 await webcamPlayer.play();
 
                 ui.webcamContainer.innerHTML = '';
